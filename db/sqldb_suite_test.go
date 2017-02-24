@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"net"
 
 	"code.cloudfoundry.org/bbs/db/sqldb/helpers"
 	"code.cloudfoundry.org/bbs/test_helpers"
@@ -100,7 +101,17 @@ var _ = AfterSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(rawDB.Ping()).NotTo(HaveOccurred())
 	_, err = rawDB.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS diego_%d", GinkgoParallelNode()))
-	Expect(err).NotTo(HaveOccurred())
+	if dbFlavor == helpers.MSSQL {
+		switch err.(type) {
+		case *net.OpError:
+			// On Azure, it may return a "i/o timeout" error when the database is dropped.
+			// do nothing here
+		default:
+			Expect(err).NotTo(HaveOccurred())
+		}
+	} else {
+		Expect(err).NotTo(HaveOccurred())
+	}
 	Expect(rawDB.Close()).NotTo(HaveOccurred())
 })
 
